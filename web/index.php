@@ -1,68 +1,43 @@
 <?php
 /**
- * Forwarder/Router to doku.php
+ * This is the main web entry point for MediaWiki.
  *
- * In normal usage, this script simply redirects to doku.php. However it can also be used as a routing
- * script with PHP's builtin webserver. It takes care of .htaccess compatible rewriting, directory/file
- * access permission checking and passing on static files.
+ * If you are reading this in your web browser, your server is probably
+ * not configured correctly to run PHP applications!
  *
- * Usage example:
+ * See the README, INSTALL, and UPGRADE files for basic setup instructions
+ * and pointers to the online documentation.
  *
- *   php -S localhost:8000 index.php
+ * https://www.mediawiki.org/wiki/Special:MyLanguage/MediaWiki
  *
- * @license    GPL 2 (http://www.gnu.org/licenses/gpl.html)
- * @author     Andreas Gohr <andi@splitbrain.org>
+ * ----------
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * http://www.gnu.org/copyleft/gpl.html
+ *
+ * @file
  */
-if(php_sapi_name() != 'cli-server') {
-    header("Location: doku.php");
-    exit;
-}
 
-# ROUTER starts below
+// Bail on old versions of PHP, or if composer has not been run yet to install
+// dependencies. Using dirname( __FILE__ ) here because __DIR__ is PHP5.3+.
+// @codingStandardsIgnoreStart MediaWiki.Usage.DirUsage.FunctionFound
+require_once dirname( __FILE__ ) . '/includes/PHPVersionCheck.php';
+// @codingStandardsIgnoreEnd
+wfEntryPointCheck( 'index.php' );
 
-# avoid path traversal
-$_SERVER['SCRIPT_NAME'] = str_replace('/../', '/', $_SERVER['SCRIPT_NAME']);
+require __DIR__ . '/includes/WebStart.php';
 
-# routing aka. rewriting
-if(preg_match('/^\/_media\/(.*)/', $_SERVER['SCRIPT_NAME'], $m)) {
-    # media dispatcher
-    $_GET['media'] = $m[1];
-    require $_SERVER['DOCUMENT_ROOT'] . '/lib/exe/fetch.php';
-
-} else if(preg_match('/^\/_detail\/(.*)/', $_SERVER['SCRIPT_NAME'], $m)) {
-    # image detail view
-    $_GET['media'] = $m[1];
-    require $_SERVER['DOCUMENT_ROOT'] . '/lib/exe/detail.php';
-
-} else if(preg_match('/^\/_media\/(.*)/', $_SERVER['SCRIPT_NAME'], $m)) {
-    # exports
-    $_GET['do'] = 'export_' . $m[1];
-    $_GET['id'] = $m[2];
-    require $_SERVER['DOCUMENT_ROOT'] . '/doku.php';
-
-} elseif($_SERVER['SCRIPT_NAME'] == '/index.php') {
-    # 404s are automatically mapped to index.php
-    if(isset($_SERVER['PATH_INFO'])) {
-        $_GET['id'] = $_SERVER['PATH_INFO'];
-    }
-    require $_SERVER['DOCUMENT_ROOT'] . '/doku.php';
-
-} else if(file_exists($_SERVER['DOCUMENT_ROOT'] . $_SERVER['SCRIPT_NAME'])) {
-    # existing files
-
-    # access limitiations
-    if(preg_match('/\/([\._]ht|README$|VERSION$|COPYING$)/', $_SERVER['SCRIPT_NAME']) or
-        preg_match('/^\/(data|conf|bin|inc)\//', $_SERVER['SCRIPT_NAME'])
-    ) {
-        die('Access denied');
-    }
-
-    if(substr($_SERVER['SCRIPT_NAME'], -4) == '.php') {
-        # php scripts
-        require $_SERVER['DOCUMENT_ROOT'] . $_SERVER['SCRIPT_NAME'];
-    } else {
-        # static files
-        return false;
-    }
-}
-# 404
+$mediaWiki = new MediaWiki();
+$mediaWiki->run();
